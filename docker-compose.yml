@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  pdf-gen-agent:
+    build: .
+    container_name: pdf_gen_agent
+    ports:
+      - "8734:8734"
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./:/app
