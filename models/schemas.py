@@ -35,7 +35,7 @@ class LayoutPlan(BaseModel):
     """Layout planning result from GPT-5."""
     strategy: str
     section_breaks: List[int]
-    formatting_rules: Dict[str, str]
+    formatting_rules: Dict[str, Any]
     estimated_pages: int
 
 class ValidationResult(BaseModel):

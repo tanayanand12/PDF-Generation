@@ -14,6 +14,9 @@ from services.gpt_planner import GPTPlanner
 from services.validation_agent import ValidationAgent
 from models.schemas import PDFRequest, PDFResponse
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,48 +32,90 @@ pdf_generator = PDFGenerator()
 gpt_planner = GPTPlanner()
 validator = ValidationAgent()
 
-@app.post("/generate-pdf", response_model=PDFResponse)
-async def generate_pdf(request: PDFRequest):
-    """
-    Generate a professionally formatted PDF from structured input.
+# @app.post("/generate-pdf", response_model=PDFResponse)
+# async def generate_pdf(request: PDFRequest):
+#     """
+#     Generate a professionally formatted PDF from structured input.
     
-    Args:
-        request: PDFRequest containing list of {"Header": "Content"} dictionaries
+#     Args:
+#         request: PDFRequest containing list of {"Header": "Content"} dictionaries
         
-    Returns:
-        PDFResponse with download URL and metadata
-    """
+#     Returns:
+#         PDFResponse with download URL and metadata
+#     """
+#     try:
+#         # Validate input structure
+#         validation_result = validator.validate_input(request.sections)
+#         if not validation_result.is_valid:
+#             raise HTTPException(status_code=400, detail=validation_result.error_message)
+        
+#         # Plan layout with GPT-5
+#         layout_plan = await gpt_planner.plan_layout(request.sections)
+#         logger.info(f"Generated layout plan: {layout_plan.strategy}")
+        
+#         # Generate PDF
+#         pdf_path = pdf_generator.generate_pdf(
+#             sections=request.sections,
+#             layout_plan=layout_plan,
+#             filename=request.filename or f"document_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+#         )
+        
+#         # Final validation
+#         # final_validation = validator.validate_pdf_structure(pdf_path)
+#         # if not final_validation.is_valid:
+#         #     logger.warning(f"PDF validation warning: {final_validation.error_message}")
+        
+#         return PDFResponse(
+#             success=True,
+#             filename=os.path.basename(pdf_path),
+#             download_url=f"/download/{os.path.basename(pdf_path)}",
+#             metadata={
+#                 "sections_count": len(request.sections),
+#                 "layout_strategy": layout_plan.strategy,
+#                 "generated_at": datetime.now().isoformat()
+#             }
+#         )
+        
+#     except Exception as e:
+#         logger.error(f"PDF generation failed: {str(e)}")
+#         raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+
+from fastapi.responses import Response
+
+@app.post("/generate-pdf", 
+          response_class=Response,
+          responses={
+              200: {
+                  "content": {"application/pdf": {}},
+                  "description": "Generated PDF file as direct download"
+              },
+              400: {"description": "Invalid input data"},
+              500: {"description": "PDF generation failed"}
+          })
+async def generate_pdf(request: PDFRequest):
+    """Generate and return PDF file directly."""
     try:
-        # Validate input structure
+        # Validate input
         validation_result = validator.validate_input(request.sections)
         if not validation_result.is_valid:
             raise HTTPException(status_code=400, detail=validation_result.error_message)
         
-        # Plan layout with GPT-5
+        # Plan layout with GPT
         layout_plan = await gpt_planner.plan_layout(request.sections)
         logger.info(f"Generated layout plan: {layout_plan.strategy}")
         
         # Generate PDF
-        pdf_path = pdf_generator.generate_pdf(
+        filename = request.filename or f"document_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        pdf_bytes = pdf_generator.generate_pdf(
             sections=request.sections,
             layout_plan=layout_plan,
-            filename=request.filename or f"document_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+            filename=filename
         )
         
-        # Final validation
-        final_validation = validator.validate_pdf_structure(pdf_path)
-        if not final_validation.is_valid:
-            logger.warning(f"PDF validation warning: {final_validation.error_message}")
-        
-        return PDFResponse(
-            success=True,
-            filename=os.path.basename(pdf_path),
-            download_url=f"/download/{os.path.basename(pdf_path)}",
-            metadata={
-                "sections_count": len(request.sections),
-                "layout_strategy": layout_plan.strategy,
-                "generated_at": datetime.now().isoformat()
-            }
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={'Content-Disposition': f'attachment; filename="{filename}"'}
         )
         
     except Exception as e:
@@ -97,3 +142,5 @@ async def health_check():
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8734)
+
+

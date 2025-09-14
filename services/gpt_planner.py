@@ -5,6 +5,7 @@ import os
 from typing import List, Dict
 from models.schemas import LayoutPlan
 import logging
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +13,7 @@ class GPTPlanner:
     """GPT-5 powered layout planning agent."""
     
     def __init__(self):
+        load_dotenv
         openai.api_key = os.getenv("OPENAI_API_KEY")
         self.model = "gpt-4"  # Using GPT-4 as GPT-5 isn't available yet
         
@@ -29,23 +31,59 @@ class GPTPlanner:
             # Prepare content analysis prompt
             content_summary = self._analyze_content(sections)
             
+            # prompt = f"""
+            # Analyze the following document sections and create an optimal PDF layout plan:
+
+            # Document Sections ({len(sections)} total):
+            # {content_summary}
+
+            # Provide a JSON response with:
+            # 1. strategy: Overall formatting approach
+            # 2. section_breaks: Indices where page breaks should be forced
+            # 3. formatting_rules: CSS-like rules for styling
+            # 4. estimated_pages: Expected page count
+
+            # Consider:
+            # - Professional document standards
+            # - Preventing mid-section page breaks
+            # - Consistent typography hierarchy
+            # - Optimal spacing and readability
+            # """
+
             prompt = f"""
-            Analyze the following document sections and create an optimal PDF layout plan:
+                You are tasked with analyzing the following structured document input and generating an optimal PDF layout plan.
 
-            Document Sections ({len(sections)} total):
-            {content_summary}
+                Input Format:
+                [{{
+                "header": "Section Title",
+                "content": "Corresponding section content"
+                }}, ...]
 
-            Provide a JSON response with:
-            1. strategy: Overall formatting approach
-            2. section_breaks: Indices where page breaks should be forced
-            3. formatting_rules: CSS-like rules for styling
-            4. estimated_pages: Expected page count
+                Document Content:
+                {content_summary}
 
-            Consider:
-            - Professional document standards
-            - Preventing mid-section page breaks
-            - Consistent typography hierarchy
-            - Optimal spacing and readability
+                Your goal is to produce a comprehensive JSON response that guides the PDF generation pipeline. The response must include:
+
+                1. strategy: A high-level description of the overall formatting and layout approach
+                2. section_breaks: List of indices where page breaks should be explicitly applied (avoid mid-section breaks)
+                3. formatting_rules: CSS-like styling rules for headers, subheaders, body text, tables, and visuals, single column preferable for professionalism
+                4. estimated_pages: Approximate number of pages based on content density and layout 
+                5. toc_structure: A clickable content index structure with anchor mappings
+                6. visual_elements: Suggestions for tables or visualizations where applicable
+                7. appendix_plan: Placement and formatting strategy for supplementary content
+                8. color_palette: Formal, subtle, and complementary color scheme for the document
+                9. alignment_strategy: Rules for full-width alignment to ensure balanced page layout
+                10. aesthetic_notes: Guidelines to enhance the document’s professional appearance and user experience
+
+                Design Considerations:
+                - Follow professional document standards and ensure consistent typography hierarchy
+                - Prevent blank space at the end of pages; avoid starting new sections on fresh pages unless necessary
+                - Apply bold, italics, and underlining where semantically appropriate to enhance clarity
+                - Ensure the document feels informative, formal, and positively engaging to the reader
+                - Include tables and visualizations where analytics insights are present
+                - Maintain a cohesive and elegant aesthetic throughout the document
+
+                Return the output strictly as a structured JSON object with all fields populated.
             """
             
             response = openai.chat.completions.create(
@@ -54,12 +92,13 @@ class GPTPlanner:
                     {"role": "system", "content": "You are a professional document layout expert. Respond with valid JSON only."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
-                max_tokens=1000
+                # temperature=0.3,
+                # max_tokens=1000
             )
             
             # Parse GPT response
             plan_data = json.loads(response.choices[0].message.content)
+            logger.info(f"GPT layout plan: {plan_data}")
             
             return LayoutPlan(
                 strategy=plan_data.get("strategy", "standard_professional"),
