@@ -71,7 +71,7 @@ class GPTPlanner:
                 5. toc_structure: A clickable content index structure with anchor mappings
                 6. visual_elements: Suggestions for tables or visualizations where applicable
                 7. appendix_plan: Placement and formatting strategy for supplementary content
-                8. color_palette: Formal, subtle, and complementary color scheme for the document
+                8. color_palette: Formal, subtle, and complementary color scheme for the document keeping readiblity on priority keeping good contrast in background color and text
                 9. alignment_strategy: Rules for full-width alignment to ensure balanced page layout
                 10. aesthetic_notes: Guidelines to enhance the document’s professional appearance and user experience
 
